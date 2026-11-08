@@ -27,6 +27,8 @@ jobs:
           npm init -y
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
           mkdir -p www
+          mkdir -p _unz
+          find . -maxdepth 2 -type f -iname "*.zip" -not -path "./node_modules/*" -not -path "./_unz/*" -print0 | while IFS= read -r -d '' Z; do echo "Giai nen: $Z"; unzip -o -q "$Z" -d _unz || true; done
           echo "== Cac file co trong repo =="
           find . -maxdepth 3 -type f -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" -not -name "package*.json" -printf "%s bytes  %p\n"
           SRC=$(find . -maxdepth 3 -type f -iname "*.html" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" -printf "%s %p\n" | sort -rn | head -n 1 | cut -d" " -f2-)
