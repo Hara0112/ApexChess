@@ -27,8 +27,10 @@ jobs:
           npm init -y
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
           mkdir -p www
-          SRC=$(find . -maxdepth 3 -iname "index*.html" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" | head -n 1)
-          if [ -z "$SRC" ]; then echo "LOI: khong thay file index.html trong repo. Hay tai index.html len thu muc goc cua repo."; exit 1; fi
+          echo "== Cac file co trong repo =="
+          find . -maxdepth 3 -type f -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" -not -name "package*.json" -printf "%s bytes  %p\n"
+          SRC=$(find . -maxdepth 3 -type f -iname "*.html" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" -printf "%s %p\n" | sort -rn | head -n 1 | cut -d" " -f2-)
+          if [ -z "$SRC" ]; then echo "LOI: khong thay file .html nao trong repo (xem danh sach file o tren). Hay tai index.html len thu muc goc cua repo."; exit 1; fi
           echo "Dung file: $SRC"
           cp "$SRC" www/index.html
           if [ ! -f icon.png ]; then ICON=$(find . -maxdepth 3 -iname "icon*.png" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" | head -n 1); if [ -n "$ICON" ]; then cp "$ICON" icon.png; fi; fi
