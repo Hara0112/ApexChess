@@ -26,8 +26,13 @@ jobs:
         run: |
           npm init -y
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
-          mkdir -p www && cp index.html www/
-          cp *.mp3 www/ 2>/dev/null || true
+          mkdir -p www
+          SRC=$(find . -maxdepth 3 -iname "index*.html" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" | head -n 1)
+          if [ -z "$SRC" ]; then echo "LOI: khong thay file index.html trong repo. Hay tai index.html len thu muc goc cua repo."; exit 1; fi
+          echo "Dung file: $SRC"
+          cp "$SRC" www/index.html
+          if [ ! -f icon.png ]; then ICON=$(find . -maxdepth 3 -iname "icon*.png" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" | head -n 1); if [ -n "$ICON" ]; then cp "$ICON" icon.png; fi; fi
+          find . -maxdepth 3 -iname "*.mp3" -not -path "./node_modules/*" -not -path "./www/*" -not -path "./android/*" -exec cp {} www/ \; 2>/dev/null || true
           npm i chess.js@0.10.3
           if [ -f node_modules/chess.js/chess.js ]; then cp node_modules/chess.js/chess.js www/chess.js && sed -i 's#https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js#chess.js#' www/index.html; fi
           npx cap init "Apex Chess" com.hara.apexchesspro --web-dir www
