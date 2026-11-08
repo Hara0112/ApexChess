@@ -1,0 +1,78 @@
+name: Build Apex Chess APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Giữ khóa ký cố định giữa các lần build
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: apex-debug-keystore-v1
+      - name: Build Android project
+        run: |
+          npm init -y
+          npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          mkdir -p www && cp index.html www/
+          cp *.mp3 www/ 2>/dev/null || true
+          npm i chess.js@0.10.3
+          if [ -f node_modules/chess.js/chess.js ]; then cp node_modules/chess.js/chess.js www/chess.js && sed -i 's#https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js#chess.js#' www/index.html; fi
+          npx cap init "Apex Chess" com.hara.apexchesspro --web-dir www
+          npx cap add android
+          pip install pillow || pip3 install pillow
+          if [ -f icon.png ]; then
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          import os
+          src = Image.open('icon.png').convert('RGB')
+          base = 'android/app/src/main/res'
+          for d, m in {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}.items():
+              folder = base + '/mipmap-' + d
+              os.makedirs(folder, exist_ok=True)
+              s = int(48 * m)
+              sq = src.resize((s, s), Image.LANCZOS)
+              sq.save(folder + '/ic_launcher.png')
+              mask = Image.new('L', (s * 4, s * 4), 0)
+              ImageDraw.Draw(mask).ellipse((0, 0, s * 4 - 1, s * 4 - 1), fill=255)
+              mask = mask.resize((s, s), Image.LANCZOS)
+              r = Image.new('RGBA', (s, s), (0, 0, 0, 0))
+              r.paste(sq, (0, 0), mask)
+              r.save(folder + '/ic_launcher_round.png')
+              f = int(108 * m)
+              k = int(f * 0.7)
+              fg = Image.new('RGBA', (f, f), (0, 0, 0, 0))
+              fg.paste(src.resize((k, k), Image.LANCZOS), ((f - k) // 2, (f - k) // 2))
+              fg.save(folder + '/ic_launcher_foreground.png')
+          ad = base + '/mipmap-anydpi-v26'
+          os.makedirs(ad, exist_ok=True)
+          xml = '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@android:color/black"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>'
+          for n in ('ic_launcher.xml', 'ic_launcher_round.xml'):
+              open(ad + '/' + n, 'w').write(xml)
+          PY
+          fi
+          sed -i "s/android:name=\".MainActivity\"/& android:screenOrientation=\"sensorLandscape\"/" android/app/src/main/AndroidManifest.xml
+          sed -i "s#</manifest>#<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/><uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/></manifest>#" android/app/src/main/AndroidManifest.xml
+          npx cap sync android
+          cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ApexChess-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Apex Chess ${{ github.run_number }}
+          files: android/app/build/outputs/apk/debug/app-debug.apk
